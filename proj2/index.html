@@ -1,7 +1,319 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+  <style>
+    body {
+      padding: 100px;
+      width: 1000px;
+      margin: auto;
+      text-align: left;
+      font-weight: 300;
+      font-family: 'Open Sans', sans-serif;
+      color: #121212;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+  </style>
+  <title>CS 184 Mesh Editor</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+  <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2022</h1>
+  <h1 align="middle">Project 2: Mesh Editor</h1>
+  <h2 align="middle">Eustyn Trinh, CS184</h2>
+
+  <br><br>
+
+  <div>
+
+    <h2 align="middle">Overview</h2>
+    <p> In this project, I implemented a basic mesh editor! It was really cool because it is basically
+    a simple version of programs I've used before such as Maya.</p>
+
+    <h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+    <h3 align="middle">Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
+
+    <p> Casteljau's algorithm is used to form Bezier curves with a set of points. The algorithm basically
+    performs n - 1 lerps on adjacent points to recursively create new sets of points until there is a single
+    point left. This ends up as a final point on the Bezier curve. Now simply perform this for the interpolation
+    constant t varying from 0 to 1, and you get the final curve. I implemented a function that
+    performs the lerps on a set of arbitrary n points with a certain value t for one step. It simply consist of
+    a for loop that takes the lerps between adjacent points in a c++ vector. Recursively calling this and varying
+    t results in the desired curve. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/1.1-0.png" align="middle" width="400px" />
+            <figcaption align="middle">Level 1</figcaption>
+          </td>
+          <td>
+            <img src="images/1-1.2.png" align="middle" width="400px" />
+            <figcaption align="middle">Level 2</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/1.1-3.png" align="middle" width="400px" />
+            <figcaption align="middle">Level 3</figcaption>
+          </td>
+          <td>
+            <img src="images/1.1-4.png" align="middle" width="400px" />
+            <figcaption align="middle">Level 4</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/1-1.5.png" align="middle" width="400px" />
+            <figcaption align="middle">Level 5</figcaption>
+          </td>
+          <td>
+            <img src="images/1.1-6.png" align="middle" width="400px" />
+            <figcaption align="middle">Level 6</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/1.1-c.png" align="middle" width="400px" />
+            <figcaption align="middle">Final Curve</figcaption>
+          </td>
+          <td>
+          <img src="images/1.1-ct.png" align="middle" width="400px" />
+          <figcaption align="middle">Random Curve with varying t</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+    <h3 align="middle">Part 2: Bezier surfaces with separable 1D de Casteljau subdivision</h3>
+    <p> Casteljau's algorithms extends to Bezier surfaces by simply repeated the algorithm for the extra dimension.
+    Put simply, we first evaluate a series of Bezier curves as in part 1. However, we then use a set of points
+    on these new Bezier curves to create another set of Bezier curves along the 3rd dimension. Repeating this
+    step along all points along the original curves results in the desired Bezier surface. To implement this,
+    we simply had the same algorithm as in Part 1 for each step (but with 3D points), along with an extra for loop
+    that took a vector of points returned from taking the Bezier points from the 1D algorithm, and again applied
+    the Casteljau's algorithm on these points. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/1.2-0.png" align="middle" width="400px" />
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+    <h2 align="middle">Section II: Sampling</h2>
+
+    <h3 align="middle">Part 3: Average normals for half-edge meshes</h3>
+    <p> To implement vertex normals, I simply looped through all the faces adjacent to a vertex using the
+    provided code to traverse through half edges. For each face, I added its normal (provided function)
+      to a 3D vector. Finally, I normalized it to get the final normal. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <td>
+          <img src="images/3-0.png" align="middle" width="400px" />
+          <figcaption align="middle">Default Flat Shading</figcaption>
+        </td>
+        <td>
+          <img src="images/3-1.png" align="middle" width="400px" />
+          <figcaption align="middle">Phong Shading</figcaption>
+        </td>
+      </table>
+    </div>
+
+    <h3 align="middle">Part 4: Half-edge flip</h3>
+    <p> To implement the edge flip operation, I followed the recommended guideline to reassign any affected
+    mesh element. To do this, I first used the reference picture provided on the spec and labeled all half edges,
+    faces, vertices, and edges (half edges and edges labeled by their corresponding vertices, vertices the letter
+    of shown on the picture, and faces final position they would be placed at). I then wrote down which mesh
+    elements corresponded with which half edges, and which half edges corresponded with each mesh element.
+    Finally, I then set in code whatever I wrote down previously. If it didn't work the first time for debugging,
+      I simply deleted the code a rewrote it. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/4-0.png" align="middle" width="400px" />
+            <figcaption align="middle">Default</figcaption>
+          </td>
+          <td>
+            <img src="images/4-1.png" align="middle" width="400px" />
+            <figcaption align="middle">Edge Flips</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <h3 align="middle">Part 5: Half-edge split</h3>
+
+    <p> To implement the edge split operation, I (similarly to part 4) followed the recommended guideline to reassign any affected
+    mesh element. To do this, I first used the reference picture provided on the spec and labeled all half edges,
+    faces, vertices, and edges (half edges and edges labeled by their corresponding vertices, vertices the letter
+    of shown on the picture, and faces final position they would be placed at). I then noted down which additional
+    mesh elements needed to be created and did so with the same naming scheme. I then wrote down which mesh
+    elements corresponded with which half edges, and which half edges corresponded with each mesh element.
+    Finally, I then set in code whatever I wrote down previously. If it didn't work the first time for debugging,
+      I simply deleted the code a rewrote it. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/4-0.png" align="middle" width="400px" />
+            <figcaption align="middle">Default </figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/5-1.png" align="middle" width="400px" />
+            <figcaption align="middle">Edge Splits</figcaption>
+          </td>
+          <td>
+            <img src="images/5-2.png" align="middle" width="400px" />
+            <figcaption align="middle">Edge Splits and Edge Flips</figcaption>
+          </td>
+        </tr>
+
+      </table>
+    </div>
+
+
+    <h3 align="middle">Part 6: Loop subdivision for mesh upsampling</h3>
+
+    <p> To implement loop subdivision, I followed the template code comments. First I computed the new positions
+    of all the old vertices using the provided formulas and set the new position fields to that (along with the
+    marker that they were old vertices). Then I did the same for edges (edges storing the new position of the edge
+    split new vertex). Then, for every edge in the original mesh, I split it using my previously defined
+    method, setting each vertex's new position to the one stored by the edge and also setting the two new edges
+    created to be new. I then looped through all edges, and for every new edges connected to a
+      new and old vertex, I flipped them. Finally, I updated all vertices positions to their new positions. </p>
+
+
+    <p> For debugging, I just ended up talking about the implementation to myself and then realizing
+      my code didn't make any sense after a bit of contemplation. Afterwards, I would make
+      some changes and eventually it worked! :) </p>
+
+    <p> Meshes after loop subdivision tend to end up way more smooth. This is because the sharp edges and corners
+      get averaged out and thus "smoothed" over. You can reduce this effect by pre-splitting edges around these
+      sharp edges and/or corners. This causes the sharp edges and/or corners to carry much more weight, so when
+      we perform loop subdivision, they are already pretty defined in those areas and don't have as drastic of
+      a change.
+    </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/6-0.png" align="middle" width="400px" />
+            <figcaption align="middle">Default</figcaption>
+          </td>
+          <td>
+            <img src="images/6-1.png" align="middle" width="400px" />
+            <figcaption align="middle">Two Loop Subdivisions</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/6-2.png" align="middle" width="400px" />
+            <figcaption align="middle">Default</figcaption>
+          </td>
+          <td>
+            <img src="images/6-3.png" align="middle" width="400px" />
+            <figcaption align="middle">Two Loop Subdivisions</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <p> When performing loop subdivision on the original cube shown below, we notice that
+    it becomes asymmetrical. This is because while the cube itself is symmetrical, its mesh elements (notably
+    its edges, are not). Since these original mesh elements act as the main focal "backbone" points in the
+    algorithm, and the edges are not symmetrical, this leads to the asymmetrical loop subdivision. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/6.1-0.png" align="middle" width="400px" />
+            <figcaption align="middle">Default</figcaption>
+          </td>
+          <td>
+            <img src="images/6.1-1.png" align="middle" width="400px" />
+            <figcaption align="middle">One Loop Subdivision</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/6.1-2.png" align="middle" width="400px" />
+            <figcaption align="middle">Two Loop Subdivisions</figcaption>
+          </td>
+          <td>
+            <img src="images/6.1-3.png" align="middle" width="400px" />
+            <figcaption align="middle">Three Loop Subdivisions</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <p> If we preprocess the cube by splitting each edge of the cube into 4 edges creating a more symmetrical
+    collection of mesh elements, we can see that the resulting loop subdivision is much more symmetrical.
+    Preprocessing helps by making the mesh elements better represent the core shape and symmetrical
+      nature of the cube. See results below. </p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/6.2-0.png" align="middle" width="400px" />
+            <figcaption align="middle">Default Pre-processed Cube</figcaption>
+          </td>
+          <td>
+            <img src="images/6.2-1.png" align="middle" width="400px" />
+            <figcaption align="middle">One Loop Subdivision</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/6.2-2.png" align="middle" width="400px" />
+            <figcaption align="middle">Two Loop Subdivisions</figcaption>
+          </td>
+          <td>
+            <img src="images/6.2-3.png" align="middle" width="400px" />
+            <figcaption align="middle">Three Loop Subdivisions</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+</body>
+
 </html>

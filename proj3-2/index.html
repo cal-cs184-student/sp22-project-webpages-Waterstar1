@@ -1,7 +1,216 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }  
+  </style> 
+<title>Eustyn Trinh  |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3-2: PathTracer</h1>
+    <h2 align="middle">Eustyn Trinh</h2>
+
+    <h2 align="middle">Part 1: Mirror and Glass Materials </h2>
+        <p> In part 1, I implemented the BSDF for mirror and glass materials. For the mirror model,
+        we simply reflect the wo across the z axis by negating its x and y values. We set the pdf to 1
+        and return the reflectance (modified according to the spec). I also implemented a refract method,
+        which handles the case where light passes through a material. To find the refraction angle wi,
+        I used the formulas derived from Snell's equation. Note that I used the z axis direction to find
+        whether the light ray was entering or exiting the material and thus, the corresponding index of
+        refraction. Finally, I implemented the glass BSDF model which both reflects and refracts light.
+        To model this in my program, I used Schlick's approximation to decide whether to reflect or refract
+        a certain light ray.</p>
+
+        <p> Shown below are seven images of CBspheres.dae rendered with varying ray depths (with
+        64 samples per pixel and 4 samples per light).
+
+        <p> As with last project, depth 0 retains the empty black scene with only the light source
+        displayed. This is because there are no bounces and only the area light rays reach the camera.
+        </p>
+
+        <p> With 1 bounce, the room lights up along with a small part of the
+            spheres that reflect light towards the camera. Since, there is one bounce,
+            the light rays can bounce off of the walls and floor and then hit the camera.
+        </p>
+
+        <p> With 2 bounces, the ceiling lights up along with the reflective components (excluding
+            the reflected light source that appeared at one bounce) of the spheres.
+            For the ceiling, this shows up on two bounces (and not 1) because it is on the same plane
+            as the light source, so the first bounce cannot be there. It needs to bounce off of the side
+            walls first, and then the ceiling and then finally the camera. The reflective component
+            shown on the spheres needs two bounces to show up, ie it bounces off the wall, and then is reflected
+            off the sphere, and then hits the camera. Notice that the ceiling reflection does not yet show up
+            because the light rays cannot bounce off the ceiling on the first bounce. The black "wall" in the center
+            of the spheres will actually never show up even with more bounces, because there is no
+            wall to reflect the initial light rays (this is the camera viewing point). Lastly, notice that
+            the right ball (which is glass) is much darker because some light rays are refracted into the sphere
+            and don't show up yet.
+        </p>
+
+        <p>
+            With 3 bounces, the refracted component of the glass sphere on the right starts to appear.
+            This is because it needs to bounce off the wall (1), refract entering the sphere (2), and refract
+            exiting the sphere (3), before hitting the camera. This causes the glass ball to become much brighter
+            as all the light rays "lost" with two bounces start to show up. Some smaller details the ceiling
+            and the reflective component of the glass ball start to show up on the mirror ball on the left.
+            This is intuitively because these both lit up in the actual scene at two bounces. We thus have an additional
+            third bounce for it to bounce off the mirror and into the camera to display these two. More specifically
+            the light rays bounce off the wall (1), bounce off the ceiling / reflect off the glass sphere (2), and then
+            reflect off the mirror ball (3).
+        </p>
+
+        <p>
+            With 4 bounces, we see the refractive component of the glass ball show up on the mirror ball.
+            This is because the light rays are able to bounce off the wall (1), refract entering the glass sphere (2),
+            refract exiting the glass sphere (3), and finally reflect off the mirror ball (4) before hitting the camera.
+        </p>
+
+        <p>
+            With 5 bounces and 100 bounces, nothing else really changes except the scenes get slightly
+            brighter.
+        </p>
+
+        <div align="middle">
+            <table style="width=100%">
+                <tr>
+                    <td>
+                        <img src="images/task1-m0.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 0</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/task1-m1.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 1</figcaption>
+                    </td>
+                </tr>
+                <br>
+                <tr>
+                    <td>
+                        <img src="images/task1-m2.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 2</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/task1-m3.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 3</figcaption>
+                    </td>
+                </tr>
+                <br>
+                <tr>
+                    <td>
+                        <img src="images/task1-m4.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 4</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/task1-m5.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 5</figcaption>
+                    </td>
+                </tr>
+                <br>
+                <tr>
+                    <td>
+                        <img src="images/task1-m100.png" align="middle" width="400px" />
+                        <figcaption align="middle">Max Ray Depth 100</figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+<h2 align="middle">Part 2: Microfacet Materials </h2>
+<p> In part 2, I implemented the BSDF for microfacet materials, which reflect light in an intricate way.
+    For most of this section, I simply followed the respective formulas provided on the spec. For the overall
+    BSDF function we multiply the Fresnel term, Shadowing-masking term, and the Normal distribution function, and then
+    divide by 4 times the z coord of the wo and wi angles. For the normal distribution function, I used the Beckmann
+    distribution as specified by the spec taking in the half vector of the ingoing and outgoing angles.
+    I then calculated the Fresnel term using the refractive index (eta) and extinction coefficient
+    (k) at fixed wavelengths according to the provided formula. Lastly, to reduce the noise in the rendered
+    images, I implemented importance sampling which samples our BSDF with regard to our Beckman normal distribution
+    function.
+
+</p>
+
+<p> Shown below are 4 images of CBdragon_microfacet_au.dae rendered with differing alpha values
+    (128 samples per pixel, 1 sample per light, and a max ray depth of 5). In general, as
+    the alpha value increases, the dragon tends to look less metallic and shiny.
+    Furthermore, with alpha values of .005 and .05, the dragon has black dark spots. This in general is
+    because the lower alpha values means the material is less bumpy, meaning that the sampled light rays
+    bounce off cleanly off the dragon. However, as the alpha values increase (.25 and .5),
+    the dragon looks more rough and the dragon becomes more colored losing any of the
+    previous black spots. This is because with the more bumpy surface, light rays bounce
+    in between creases in the dragon, which causes the initial black spots
+    on the dragon where the area light doesn't directly hit to gain color.
+</p>
+
+<div align="middle">
+    <table style="width=100%">
+        <tr>
+            <td>
+                <img src="images/task2-alpha-005.png" align="middle" width="400px" />
+                <figcaption align="middle">alpha = .005</figcaption>
+            </td>
+            <td>
+                <img src="images/task2-alpha-05.png" align="middle" width="400px" />
+                <figcaption align="middle">alpha = .05</figcaption>
+            </td>
+        </tr>
+        <br>
+        <tr>
+            <td>
+                <img src="images/task2-alpha-25.png" align="middle" width="400px" />
+                <figcaption align="middle">alpha = .25</figcaption>
+            </td>
+            <td>
+                <img src="images/task2-alpha-5.png" align="middle" width="400px" />
+                <figcaption align="middle">alpha = .5</figcaption>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<p> Shown below are 2 images of CBbunny_microfacet_cu.dae one with importance sampling and the other
+    with hemisphere sampling. Overall, the hemisphere sampled bunny is much noisier than the one rendered
+    with importance sampling.
+</p>
+
+<div align="middle">
+    <table style="width=100%">
+        <tr>
+            <td>
+                <img src="images/task2-importance.png" align="middle" width="400px" />
+                <figcaption align="middle">Importance Sampler</figcaption>
+            </td>
+            <td>
+                <img src="images/task2-hemisphere.png" align="middle" width="400px" />
+                <figcaption align="middle">Cosine Hemisphere Sampler</figcaption>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<p> Shown below is CBbunny_microfacet.dae rendered with changed eta and k values corresponding to Titanium
+    Carbide.
+</p>
+
+<div align="middle">
+    <table style="width=100%">
+        <tr>
+            <td>
+                <img src="images/task2-TiC.png" align="middle" width="400px" />
+                <figcaption align="middle">Titanium Carbide Bunny</figcaption>
+            </td>
+        </tr>
+    </table>
+</div>
+
+</body>
 </html>
+
+
+
+

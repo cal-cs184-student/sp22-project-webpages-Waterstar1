@@ -1,7 +1,357 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 4 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Cloth Simulator</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2022</h1>
+<h1 align="middle">Project 4: Cloth Simulator</h1>
+<h2 align="middle">Eustyn Trinh, CS184</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p> In this project, I built a cloth simulator. First, I create a grid system of masses and springs to better represent the physics of a cloth. I then added basic simulation of the cloth moving by updating every cloth's point mass's position based on the internal and external forces acting upon the cloth. I then added some collision objects that the cloth could interact with, namely a sphere and plane, and also self collisions (cloth with itself) and sped it up using a spatial partitioned hash table. Finally, I added various texture options for the scene using OpenGL. The bugs I encounter were very delicate and involved a lot of isolating forces and components of the point masses in order to figure out the bug. My approach throughout the project was to read the spec very carefully!</p>
+
+<h2 align="middle">Part I: Masses and springs</h2>
+
+    <p> In part I, I create a grid of point masses to represent the structure of cloth object. Specifically, I created num_width_points and num_height_points spaced with width divided by (num_width_points - 1) and height divided by (num_height_points - 1) spacing respectively. Note that we stored this grid in a 1D array arranged in row major order and I also set certain points to be pinned depending on the given parameters (this is to represent if a point is to move are not). Afterwards, I created springs to act as constraints to better represent a realistic cloth material. To do this, I added springs that connect all adjacent point masses with the STRUCTURAL parameter, springs that connect all the diagonal point masses with the SHEARING parameter, and finally springs that connect all point masses 2 spaces away with the BENDING parameter. I did so using a double for loop that only referenced points above or to the left of the looped point as to not repeat spring connections. </p>
+
+    <p> Shown below are images that have varying constraints toggled off and on. </p>
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task1-1.png" align="middle" width="400px" />
+                    <figcaption align="middle">Without Shearing Constraints</figcaption>
+                </td>
+                <td>
+                    <img src="images/task1-2.png" align="middle" width="400px" />
+                    <figcaption align="middle">Only Shearing Constraints</figcaption>
+                </td>
+            </tr>
+            <br>
+            <tr>
+                <td>
+                    <img src="images/task1-3.png" align="middle" width="400px" />
+                    <figcaption align="middle">All Constraints</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <h2 align="middle">Part II: Simulation via numerical integration</h2>
+
+    <p> In part II, I added simulation. To do this, I computed the forces acting on each point mass. This consisted first of the overall external forces (calculated by Newton's equation F=ma) which I applied to all point masses. Afterwards, I also added the spring constraint forces. This is given by the equation based off Hooke's law provided on the spec (Fs = ks (|(pa - pb)| - l) for each spring. Note that the spring's force was applied to both point_masses the spring connected, but with opposite directions. Then we used Verlet Integration which uses each point mass's acceleration and position at a certain point in time to estimate the position at the next timestep. Then I updated point masses position to the new position and stored the old one in last_position. Note, the formula was provided on the spec. Finally, I made sure the distance between two point_masses never extended past more than 10% of a spring that connected the two point's rest length. To do this, I looped through every single spring, and checked if the distance between than them was greater than 1.1 times the rest length. If it did, I adjusted each point's position to be half the difference between 1.1 times the rest length and the current distance in the direction of the other point. If either point was pinned, I would just use the whole difference rather than half.</p>
+
+    <b> Experimentation: </b>
+
+    <p> With a very low ks, the cloth seems to be much more bouncy and erratic and the folds become much more prominent. As the ks increases to a high ks, the cloth becomes less bouncy and more smooth as it comes to rest.</p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task2-low_ks.png" align="middle" width="400px" />
+                    <figcaption align="middle">Low ks</figcaption>
+                </td>
+                <td>
+                    <img src="images/task2-high_ks.png" align="middle" width="400px" />
+                    <figcaption align="middle">High ks</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+
+    <p> Density seems to have the opposite effect as ks. With a very low density, the cloth simulation becomes less bouncy and erratic, and the folds are very smooth. With a high density, the cloth becomes more bouncy and erratic and folds are more prominent. </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task2-low_dens.png" align="middle" width="400px" />
+                    <figcaption align="middle">Low density</figcaption>
+                </td>
+                <td>
+                    <img src="images/task2-high_dens.png" align="middle" width="400px" />
+                    <figcaption align="middle">High density</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> As damping increases to 100% (high damping), the cloth no longer bounces at all and just settles to a rest. As damping decreases to 0% (low damping), the cloth because extremely chaotic, with folds and bumps all over the place before it comes to rest. </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task2-low_damp.png" align="middle" width="400px" />
+                    <figcaption align="middle">Low damping</figcaption>
+                </td>
+                <td>
+                    <img src="images/task2-high_damp.png" align="middle" width="400px" />
+                    <figcaption align="middle">High damping</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> Shown below is the cloth's final resting state with default parameters for reference. </p>
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task2-default.png" align="middle" width="400px" />
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<h2 align="middle">Part III: Handling collisions with other objects</h2>
+
+    <h3 align="middle">3.1: Handling collisions with spheres</h3>
+
+    <p> In part 3.1, I handled intersection between the point masses and spheres. To do this, I first check if the point_masses position is inside the sphere by checking if the distance from the sphere's origin is less than the radius. If so, I took the vector created by the origin pointing towards the point mass's position and extending it by radius length. This gave me the "tangent" point. I then created another vector d from the point mass's last position to the tangent point, but scaled down by the friction factor. I set this point mass's position to its last position adjusted by this vector d. </p>
+
+    <h3 align="middle">3.2: Handling collisions with planes</h3>
+
+    <p> In part 3.2, I handled intersection between the point masses and planes. To do this, I first checked if a point_masses last position and current position were on opposite sides of the plane. This was done by taking the vector point from the plane point to both the point masses position's and last position's projection onto the plane's normal vector. If these were opposite signs, the point mass has crossed the plane and needs to be updated. I then compute the tangent point, which in this case is simply the point masses position adjusted towards the plane (using the normal) with a length equivalent to the previously mentioned projections. I offset the tangent point by a small amount towards the side of the last position. I then created another vector d from the point mass's last position to this offset tangent point, but scaled down by the friction factor. I set this point mass's position to its last position adjusted by this vector d. </p>
+
+    <p> Shown below are images of sphere.json at its rest state with varying ks values. As we can see, as the ks increases, the material gets less and less stretchy. Notice how the cloth hangs much lower in the image where ks is 500 compared to the one where ks is 50000. Also, the higher the ks, the more angled it is (the cloth doesn't hang straight down). </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task3-sphere_ks_500.png" align="middle" width="400px" />
+                    <figcaption align="middle">ks = 500</figcaption>
+                </td>
+                <td>
+                    <img src="images/task3-sphere_ks_5000.png" align="middle" width="400px" />
+                    <figcaption align="middle">ks = 5000</figcaption>
+                </td>
+            </tr>
+            </br>
+            <tr>
+                <td>
+                    <img src="images/task3-sphere_ks_50000.png" align="middle" width="400px" />
+                    <figcaption align="middle">ks = 50000</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> Shown below is plane.json's final resting position. </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task3-plane.png" align="middle" width="400px" />
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<h2 align="middle">Part IV: Handling collisions with other objects</h2>
+    <p> In part 4, I implemented the simulation of self collisions. To do this, I first created a hash table for the point_masses to more efficiently calculate which point masses collide which each other. To do this, I separated the 3d space into 3d boxes of width, height, and length according to the spec. I then placed each point mass into one of these boxes, by floor dividing each of its x y and z coordinates by the respective width, height, and length to get 3 integers that uniquely identified a hash table bucket. Note to do the specific hash conversion, I simply used 3d to 1d array index conversion. To do the self collisions, I looped through every point mass, and checked if every point mass in the same bucket in the hash table was less than 2 times the thickness length apart, and if so, added to a vector the correction so that it was bumped so that it was 2 times the thickness apart. Finally, I averaged this value for all point mass collisions of the particular point mass (divided by simulation steps) and updated that point masses position. Again we repeat this for all point masses. </p>
+
+    <p> Shown below are images of selfCollision.json at various timesteps.</p>
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task4-1.png" align="middle" width="400px" />
+                    <figcaption align="middle">First</figcaption>
+                </td>
+                <td>
+                    <img src="images/task4-2.png" align="middle" width="400px" />
+                    <figcaption align="middle">Second</figcaption>
+                </td>
+            </tr>
+            </br>
+            <tr>
+                <td>
+                    <img src="images/task4-3.png" align="middle" width="400px" />
+                    <figcaption align="middle">Third</figcaption>
+                </td>
+                <td>
+                    <img src="images/task4-4.png" align="middle" width="400px" />
+                    <figcaption align="middle">Fourth</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> With a low ks, the cloth folds in a very clumped manner. There are many small folds that fold on top of each other and it is very chaotic. With a higher ks, the cloth folds in a more smooth manner with much fewer and larger folds. This looks more flowy and the cloth retains its initial shape better. Reference image below.</p>
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task4-ks_1.png" align="middle" width="400px" />
+                    <figcaption align="middle">Low ks</figcaption>
+                </td>
+                <td>
+                    <img src="images/task4-ks_2.png" align="middle" width="400px" />
+                    <figcaption align="middle">High ks</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> Density has the opposite effect as ks. With a low density, the cloth tends to fold in a more smooth manner with fewer and larger folds. With a high density, the cloth tends to fold very chaotic with many small folds that fold on top of each other. Reference images below. </p>
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task4-density_1.png" align="middle" width="400px" />
+                    <figcaption align="middle">Low density</figcaption>
+                </td>
+                <td>
+                    <img src="images/task4-density_2.png" align="middle" width="400px" />
+                    <figcaption align="middle">High density</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<h2 align="middle">Part V: Shaders </h2>
+
+    <p> In part 5, I implement various shaders with OpenGl. This worked with vertex shaders and fragment shaders. Vertex shaders are earlier in the rasterization pipeline and work with manipulating vertices. In our case, we used them to modify normals and positions. Fragment shaders take in the output from our vertex shaders and uses the attributes to calculate a specific rbg color value. This is more closely aligned with what we see in on our screens, and a fragment is very similar to a pixel with some nuances. Together, this allows us to create realistic lighting effects on 3d models. </p>
+
+    <p> Blinn-Phong shading is a not theoretically accurate but efficient "close enough" shading model that accounts for ambient, diffuse, and specular components of lighting. Images shown below. </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task5-phong_ambient.png" align="middle" width="400px" />
+                    <figcaption align="middle">Ambient</figcaption>
+                </td>
+                <td>
+                    <img src="images/task5-phong_diffuse.png" align="middle" width="400px" />
+                    <figcaption align="middle">Diffuse</figcaption>
+                </td>
+            </tr>
+            </br>
+            <tr>
+                <td>
+                    <img src="images/task5-phong_specular.png" align="middle" width="400px" />
+                    <figcaption align="middle">Specular</figcaption>
+                </td>
+                <td>
+                    <img src="images/task5-phong_all.png" align="middle" width="400px" />
+                    <figcaption align="middle">Complete Blinn-Phong Model</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> Shown below is sphere.json with a kirby texture. </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task5-texture.png" align="middle" width="400px" />
+                </td>
+        </table>
+    </div>
+
+    <p> Shown below are spheres rendered with texture 4 (200 normal, .02 height). </p>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task5-bump1.png" align="middle" width="400px" />
+                    <figcaption align="middle">Bump Mapping</figcaption>
+                </td>
+        </table>
+    </div>
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task5-bump_2.png" align="middle" width="400px" />
+                    <figcaption align="middle">Bump Mapping</figcaption>
+                </td>
+                <td>
+                    <img src="images/task5-displacement.png" align="middle" width="400px" />
+                    <figcaption align="middle">Displacement Mapping</figcaption>
+                </td>
+        </table>
+    </div>
+    <p> Bump mapping is a way to add "courseness" or dimensionality to an object through a flat texture which by manipulating the lighting on the object, makes the object look bumpy. Displacement mapping is simply bump mapping combined with the fact that the actual object's vertices move as well. This means the object is actually not smooth and doesn't simply look bumpy. </p>
+
+    <p> As can be seen above, bump mapping and displacement mapping look fairly similar with these parameters. The displacement map sphere is slightly larger, but the visuals remain largely the same. This is because the vertices are not displaced too much. </p>
+
+    <p> When we change the coarseness of the sphere (using -o and -a flags), we notice the difference between bump mapping and displacement much more clearly. Displacement mapping changes the actual shape of the sphere while for bump mapping, the shape remains largely the same. For both, the lighting changes. </p>
+
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task5-o16bump.png" align="middle" width="400px" />
+                    <figcaption align="middle">Bump Mapping -o 16 -a 16</figcaption>
+                </td>
+                <td>
+                    <img src="images/task5-o16displacement.png" align="middle" width="400px" />
+                    <figcaption align="middle">Displacement Mapping -o 16 -a 16</figcaption>
+                </td>
+            </tr>
+            </br>
+            <tr>
+                <td>
+                    <img src="images/task5-o128bump.png" align="middle" width="400px" />
+                    <figcaption align="middle">Bump Mapping -o 128 -a 128</figcaption>
+                </td>
+                <td>
+                    <img src="images/task5-o128displacement.png" align="middle" width="400px" />
+                    <figcaption align="middle">Displacement Mapping -o 128 -a 128</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <p> Shown below are renderings with mirror textures. </p>.
+
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/task5-mirror.png" align="middle" width="400px" />
+                </td>
+                <td>
+                    <img src="images/task5-mirror2.png" align="middle" width="400px" />
+                </td>
+        </table>
+    </div>
+
+</body>
 </html>
